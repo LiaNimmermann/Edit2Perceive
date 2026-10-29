@@ -2,3 +2,4 @@ ckpts/
 *__pycache__*
 FLUX.1-Kontext-dev
 .vscode
+.venv/

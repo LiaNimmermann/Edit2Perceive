@@ -1,404 +1,142 @@
-<!-- 
-# Edit2Perceive: Image Editing Diffusion Models Are Strong Dense Perceivers
-*Yiqing Shi, Yiren Song, Mike Zheng Shou*
+# Edit2Perceive RDR2 Normal Benchmark
 
+This directory adds an RDR2 surface-normal benchmark for Edit2Perceive. It runs
+the pretrained Edit2Perceive normal estimator on images in `PNG/`, compares the
+predictions with the matching OpenEXR maps in `NormalMap/`, and reports angular
+error overall and by daytime.
 
-[![arXiv](https://img.shields.io/badge/arXiv-2511.18673-b31b1b.svg)](https://arxiv.org/abs/2511.18673)
-[![HuggingFace](https://img.shields.io/badge/Hugging%20Face-model-yellow.svg?logo=huggingface)](https://hf-mirror.com/Seq2Tri/Edit2Perceive/tree/main)
+## Requirements
 
-![Teaser](samples/teaser.png   )
+- Python 3.12 (recommended by Edit2Perceive).
+- An NVIDIA GPU and a CUDA-compatible PyTorch installation for practical
+  inference. The benchmark enables Edit2Perceive's CPU offloading to reduce
+  peak GPU memory use.
+- The Edit2Perceive dependencies, FLUX.1-Kontext-dev base model, and a
+  pretrained Edit2Perceive normal checkpoint.
+- The RDR2 benchmark dataset.
 
-## Installation
-
-1. **Clone the repository**
-
-    ```bash
-    git clone https://github.com/showlab/Edit2Perceive.git
-    cd Edit2Perceive
-    conda create -n e2p python=3.12 # recommend version
-    conda activate e2p
-    pip install -r requirements.txt
-    ```
-
-2. **Download Base Model**
-
-    Download the [FLUX.1-Kontext-dev](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev) model:
-    ```bash
-    export HF_ENDPOINT=https://hf-mirror.com # if huggingface is not available, use this mirror
-    hf download black-forest-labs/FLUX.1-Kontext-dev --exclude "transformer/" --local-dir ./FLUX.1-Kontext-dev
-    ```
-3. **Download Our Models**
-
-    Download our pre-trained models and place them in the `ckpts/` directory. You can either download lora version (small size for fast validation) or full version (best quality but file is large):
-    
-    **Option1** Download LoRA weights
-    ```bash
-    hf download Seq2Tri/Edit2Perceive --local-dir ckpts/ --include "*lora.safetensors"
-    hf download Seq2Tri/Edit2Perceive --local-dir ckpts/ --exclude "*lora.safetensors"
-    ```
-    **Option2** Download full model weights
-    ```bash
-    ```
-    The Final Folder Sturcture should be like this:
-    ```bash
-    ckpts/
-    ├── depth.safetensors
-    ├── depth_lora.safetensors
-    ├── normal.safetensors
-    ├── normal_lora.safetensors
-    ├── matting.safetensors
-    └── matting_lora.safetensors
-    ```
-
-## Inference
-### UI
+Run commands from this directory:
 
 ```bash
-python app.py
+cd E2P/Edit2Perceive
 ```
-and then visit `http://localhost:7860`
 
-### No UI
+Install dependencies in a Python environment using the upstream requirements:
 
 ```bash
-python inference.py
-```
-## Eval on benchmarks
-Please download the evluation datasets: [depth](https://share.phys.ethz.ch/~pf/bingkedata/marigold/evaluation_dataset),[normal](https://share.phys.ethz.ch/~pf/bingkedata/marigold/marigold_normals/evaluation_dataset), matting:[P3M-10k](https://github.com/JizhiziLi/P3M),[AM-2k](https://github.com/JizhiziLi/GFM) and [AIM-500](https://github.com/JizhiziLi/AIM)
-
-And then run:
-```bash
-python utils/eval_multiple_datasets.py --task depth --state_dict ckpts/depth.safetensors
-python utils/eval_multiple_datasets.py --task normal --state_dict ckpts/normal.safetensors
-python utils/eval_multiple_datasets.py --task matting --state_dict ckpts/matting.safetensors
-
-```
-## Train
-### Prepare training dataset
-#### Depth
-
-Prepare for Hypersim and Virtual KITTI 2 datasets.
-
-1. Hypersim Dataset
-    ```bash
-    python preprocess/depth/download_hypersim.py --contains color.hdf5 depth_meters.hdf5 position.hdf5 render_entity_id.hdf5 normal_cam.hdf5 normal_world.hdf5 --silent
-    ```
-    After download, preprocess with 
-    ```
-    python preprocess/depth/preprocess_hypersim.py --dataset_dir /path/to/hypersim --output_dir /path/to/output
-    ```
-
-2. Virtual KITTI 2 Dataset: Download by this [link](https://europe.naverlabs.com/proxy-virtual-worlds-vkitti-2/)
-
-#### Normals
-Prepare for Hypersim, Interiorverse and Sintel datasets.
-1. Hypersim Dataset
-
-    Download by this command:
-    ```bash
-    python preprocess/depth/download_hypersim.py --contains color.hdf5 position.hdf5 normal_cam.hdf5 normal_world.hdf5 render_entity_id.hdf5 --silent
-    ``` 
-    Preprocess with:
-    ```bash
-    python preprocess/normal/preprocess_hypersim_normals.py --dataset_dir /path/to/hypersim --output_dir /path/to/output
-    ```
-2. InteriorVerse Dataset: Refer to [download instructions](https://interiorverse.github.io/#download) and preprocess with `python preprocess/normal/preprocess_interiorverse_normals.py --dataset_dir /path/to/interiorverse --output_dir /path/to/output`
-3. Sintel Dataset: Download by this [link](http://files.is.tue.mpg.de/sintel/MPI-Sintel-complete.zip) or [alternative link](http://sintel.cs.washington.edu/MPI-Sintel-complete.zip)
-
-#### Matting
-[Composition-1k](https://github.com/JizhiziLi/GFM), [Distinctions-646](https://github.com/yuhaoliu7456/CVPR2020-HAttMatting), [AM-2k](https://github.com/JizhiziLi/GFM), [COCO-Matting](https://github.com/XiaRho/SEMat?tab=readme-ov-file)
-
-For Distinctions-646 Dataset, the official repo offers the fg and alpha without bg and merged, bg is sampled from  [VOC2012](https://datasets.cms.waikato.ac.nz/ufdl/data/pascalvoc2012/VOCtrainval_11-May-2012.tar) and you need to gen merged dataset yourself (refer to `preprocess/matting/preprocess_distinctions_646.py`).
-
-For COCO-Matting Dataset, you need to download [COCO-Matting_trimap_alpha.7z
-](https://drive.google.com/file/d/1Q-clw6T6OnNNDEJ0gtkqOEIagVAvqFWU/view?usp=sharing)and [train2017.zip](http://images.cocodataset.org/zips/train2017.zip) , and then split the trimap_alpha (concat in width) file into single alpha.
-
-After the dataset preparation, change the `--dataset_base_path` to your dataset absolute path in scripts/*.sh, for example(the dataset order is important, please don't change):
-```bash
-# depth task: Hypersim + VKITTI2
---dataset_base_path "/mnt/nfs/workspace/syq/dataset/Hypersim/processed_depth,/mnt/nfs/workspace/syq/dataset/vkitti2"
-# normal task: Hypersim + InteriorVerse + Sintel
---dataset_base_path "/mnt/nfs/workspace/syq/dataset/Hypersim/processed_normal,/mnt/nfs/workspace/syq/dataset/InteriorVerse/processed_normal,/mnt/nfs/workspace/syq/dataset/sintel" \
-# matting task: 
---dataset_base_path /mnt/nfs/workspace/syq/dataset/matting/composition-1k,/mnt/nfs/workspace/syq/dataset/matting/Distinctions-646,/mnt/nfs/workspace/syq/dataset/matting/AM-2k,/mnt/nfs/workspace/syq/dataset/matting/COCO-Matte \
-```
-And then start to train:
-```bash
-bash scripts/Kontext_depth_lora.sh
-bash scripts/Kontext_depth.sh
-bash scripts/Kontext_normal_lora.sh
-bash scripts/Kontext_normal.sh
-bash scripts/Kontext_matting_lora.sh
-bash scripts/Kontext_matting.
-```
-
-## Cite
-If you find our work useful in your research please consider citing our paper:
-
-```Bibtex
-@misc{edit2perceive,
-      title={Edit2Perceive: Image Editing Diffusion Models Are Strong Dense Perceivers}, 
-      author={Yiqing Shi and Yiren Song and Mike Zheng Shou},
-      year={2025},
-      eprint={2511.18673},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2511.18673}, 
-}
-```
-
-## Contact
-If you have any questions, please feel free to contact yqshi@stu.pku.edu.cn -->
-
-# Edit2Perceive: Image Editing Diffusion Models Are Strong Dense Perceivers
-**Yiqing Shi**, **Yiren Song**, **Mike Zheng Shou**
-
-
-[![arXiv](https://img.shields.io/badge/arXiv-2511.18673-b31b1b.svg)](https://arxiv.org/abs/2511.18673)
-[![HuggingFace](https://img.shields.io/badge/Hugging%20Face-Model-yellow.svg?logo=huggingface)](https://hf-mirror.com/Seq2Tri/Edit2Perceive/tree/main)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/showlab/Edit2Perceive/blob/main/LICENSE)
-
-![Teaser](samples/teaser.png)
-
-> **Abstract:** We present **Edit2Perceive**, a unified framework for diverse dense prediction tasks. We demonstrate that image editing diffusion models (specifically FLUX.1 Kontext), rather than text-to-image generators, provide a better inductive bias for deterministic dense perception. Our model achieves state-of-the-art performance across **Zero-shot Monocular Depth Estimation**, **Surface Normal Estimation**, and **Interactive Matting**, supporting efficient single-step deterministic inference.
-
----
-## 📰 News
-
-**Dec 19, 2025** Inference Code Release, with model weights
-
-**Dec 23, 2025** Training Code Release
-
-**Feb, 2026** This Paper was accepted by **CVPR2026**
-
-## 🛠️ Installation
-
-### 1. Environment Setup
-
-```bash
-git clone [https://github.com/showlab/Edit2Perceive.git](https://github.com/showlab/Edit2Perceive.git)
-cd Edit2Perceive
-
-# Create environment (Python 3.12 recommended)
-conda create -n e2p python=3.12 
-conda activate e2p
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Download Models
+## Model files
 
-**Step 1: Download Base Model (FLUX.1-Kontext)**
-
-```bash
-# If huggingface is not available, use mirror
-export HF_ENDPOINT=https://hf-mirror.com
-
-hf download black-forest-labs/FLUX.1-Kontext-dev --exclude "transformer/" --local-dir ./FLUX.1-Kontext-dev
-```
-
-**Step 2: Download Edit2Perceive Weights**
-Place the models in the `ckpts/` directory.
-
-* **Option A: LoRA Weights** (Small size, fast validation)
-```bash
-hf download Seq2Tri/Edit2Perceive --local-dir ckpts/ --include "*lora.safetensors"
-```
-
-
-* **Option B: Full Model Weights** (Best quality)
-```bash
-hf download Seq2Tri/Edit2Perceive --local-dir ckpts/ --exclude "*lora.safetensors"
-```
-
-
-
-**Required Directory Structure:**
+Download the FLUX.1-Kontext-dev files described in
+[README_E2P.md](README_E2P.md) into `FLUX.1-Kontext-dev/`. The benchmark uses
+the full normal checkpoint by default:
 
 ```text
-Edit2Perceive/
-├── ckpts/
-│   ├── depth.safetensors
-│   ├── depth_lora.safetensors
-│   ├── normal.safetensors
-│   ├── normal_lora.safetensors
-│   ├── matting.safetensors
-│   └── matting_lora.safetensors
-├── FLUX.1-Kontext-dev/
-└── ...
+FLUX.1-Kontext-dev/
+├── ae.safetensors
+├── flux1-kontext-dev.safetensors
+├── text_encoder/
+│   └── model.safetensors
+└── text_encoder_2/
+
+ckpts/
+└── normal.safetensors
 ```
 
----
+The base model directory and full checkpoint are already the script defaults.
+To benchmark the smaller normal LoRA checkpoint instead, download
+`ckpts/normal_lora.safetensors` and add `--lora`.
 
-## 🚀 Inference
+## Dataset layout
 
-### Web UI (Gradio)
+The dataset root must contain both `PNG/` and `NormalMap/` directories:
+
+```text
+<dataset-root>/
+├── PNG/
+│   └── o_<id>_<daytime>.png
+└── NormalMap/
+    └── n_<id>.exr
+```
+
+Each input PNG must have a matching EXR for its ID. The benchmark evaluates
+each daytime image against that ID's normal map. The dataset is not included in
+this repository.
+
+## Run the benchmark
+
+Run the full evaluation and choose an output directory:
 
 ```bash
-python app.py # Visit http://localhost:7860
+python benchmark_r2d.py \
+  --dataset-root /path/to/RDR2_dataset_processed_test \
+  --output-dir /path/to/rdr2-edit2perceive-results
 ```
 
-### Command Line
-
-Run inference on images without the UI:
+Run a short smoke test before processing the full dataset:
 
 ```bash
-python inference.py
+python benchmark_r2d.py \
+  --dataset-root /path/to/RDR2_dataset_processed_test \
+  --output-dir /path/to/rdr2-edit2perceive-smoke-test \
+  --max-images 5 \
+  --metrics-only
 ```
 
-
-## 📊 Evaluation
-
-### 1. Prepare Datasets
-
-Please download the evaluation datasets from the links below:
-
-* **Depth:** [Evaluation Dataset](https://share.phys.ethz.ch/~pf/bingkedata/marigold/evaluation_dataset)
-* **Normal:** [Evaluation Dataset](https://share.phys.ethz.ch/~pf/bingkedata/marigold/marigold_normals/evaluation_dataset)
-* **Matting:** [P3M-10k](https://github.com/JizhiziLi/P3M), [AM-2k](https://github.com/JizhiziLi/GFM), [AIM-500](https://github.com/JizhiziLi/AIM)
-
-### 2. Run Evaluation
-Before run evaluation, chagne the `gt_path` in `utils/eval_multiple_datasets.py` to your dataset path. And then
-```bash
-# Depth
-python utils/eval_multiple_datasets.py --task depth --state_dict ckpts/depth.safetensors
-
-# Normal
-python utils/eval_multiple_datasets.py --task normal --state_dict ckpts/normal.safetensors
-
-# Matting
-python utils/eval_multiple_datasets.py --task matting --state_dict ckpts/matting.safetensors
-```
-
----
-
-## 🏋️ Training
-
-### 1. Dataset Preparation
-
-Set up the datasets for your target task.
-
-<details>
-<summary><strong>Datasets for Depth Estimation</strong> (Hypersim & Virtual KITTI 2)</summary>
-
-1. **Hypersim Dataset**
-* Download:
-```bash
-python preprocess/depth/download_hypersim.py --contains color.hdf5 depth_meters.hdf5 position.hdf5 render_entity_id.hdf5 normal_cam.hdf5 normal_world.hdf5 --silent
-```
-
-* Preprocess:
-```bash
-python preprocess/depth/preprocess_hypersim.py --dataset_dir /path/to/hypersim --output_dir /path/to/output
-```
-
-
-2. **Virtual KITTI 2 Dataset**
-* Download from [here](https://europe.naverlabs.com/proxy-virtual-worlds-vkitti-2/).
-
-
-
-</details>
-
-<details>
-<summary><strong>Datasets for Surface Normal</strong> (Hypersim, InteriorVerse & Sintel)</summary>
-
-1. **Hypersim Dataset**
-* Download:
-```bash
-python preprocess/depth/download_hypersim.py --contains color.hdf5 position.hdf5 normal_cam.hdf5 normal_world.hdf5 render_entity_id.hdf5 --silent
-```
-
-
-* Preprocess:
-```bash
-python preprocess/normal/preprocess_hypersim_normals.py --dataset_dir /path/to/hypersim --output_dir /path/to/output
-```
-
-
-
-
-2. **InteriorVerse Dataset**
-* Refer to [download instructions](https://interiorverse.github.io/#download).
-* Preprocess:
-```bash
-python preprocess/normal/preprocess_interiorverse_normals.py --dataset_dir /path/to/interiorverse --output_dir /path/to/output
-```
-
-
-
-
-3. **Sintel Dataset**
-* Download via [Link 1](http://files.is.tue.mpg.de/sintel/MPI-Sintel-complete.zip) or [Link 2](http://sintel.cs.washington.edu/MPI-Sintel-complete.zip).
-
-
-
-</details>
-
-<details>
-<summary><strong>Datasets for Interactive Matting</strong> (Comp-1k, Distinctions, AM-2k, COCO)</summary>
-
-* **Sources:** [Composition-1k](https://github.com/JizhiziLi/GFM), [Distinctions-646](https://github.com/yuhaoliu7456/CVPR2020-HAttMatting), [AM-2k](https://github.com/JizhiziLi/GFM), [COCO-Matting](https://github.com/XiaRho/SEMat?tab=readme-ov-file).
-* **Special Instructions:**
-* **Distinctions-646:** You must generate the merged dataset yourself using backgrounds sampled from [VOC2012](https://datasets.cms.waikato.ac.nz/ufdl/data/pascalvoc2012/VOCtrainval_11-May-2012.tar). Refer to `preprocess/matting/preprocess_distinctions_646.py`.
-* **COCO-Matting:** Download [trimap_alpha](https://www.google.com/search?q=https://drive.google.com/file/d/1Q-clw6T6OnNNDEJ0gtkqOEIagVAvqFWU/view%3Fusp%3Dsharing) and [train2017.zip](http://images.cocodataset.org/zips/train2017.zip). Mannually split the `trimap_alpha` (concatenated in width) into single alpha channels.
-
-
-
-</details>
-
-### 2. Configure Paths
-
-Update the `--dataset_base_path` in the scripts located in `scripts/*.sh`. **Note: The dataset order is strict and must not be changed.**
+To use the normal LoRA weights:
 
 ```bash
-# Example for Depth (Hypersim + VKITTI2)
---dataset_base_path "/path/to/Hypersim/processed_depth,/path/to/vkitti2"
-
-# Example for Normal (Hypersim + InteriorVerse + Sintel)
---dataset_base_path "/path/to/Hypersim/processed_normal,/path/to/InteriorVerse/processed_normal,/path/to/sintel"
-
-# Example for Matting
---dataset_base_path "/path/to/composition-1k,/path/to/Distinctions-646,/path/to/AM-2k,/path/to/COCO-Matte"
+python benchmark_r2d.py \
+  --dataset-root /path/to/RDR2_dataset_processed_test \
+  --output-dir /path/to/rdr2-edit2perceive-lora-results \
+  --lora
 ```
 
-### 3. Run Training
+Main options:
 
-Execute the corresponding script for LoRA or Full Fine-tuning, more details of training refer to [training_args_instructions.md](./scripts/training_args_instructions.md)
+| Option | Description |
+| --- | --- |
+| `--dataset-root PATH` | Dataset directory containing `PNG/` and `NormalMap/`. |
+| `--output-dir PATH` | Required directory for metrics, predictions, and visualizations. |
+| `--model-root PATH` | FLUX.1-Kontext-dev directory (defaults to the included model directory). |
+| `--checkpoint PATH` | Override the full or LoRA normal checkpoint path. |
+| `--lora` | Load LoRA weights; defaults to `ckpts/normal_lora.safetensors`. |
+| `--device DEVICE` | Inference device, default `cuda:0`. |
+| `--resolution N` | Square input/output resolution, default `768`; must be divisible by 16. |
+| `--num-inference-steps N` | Number of diffusion steps, default `8`. |
+| `--seed N` | Fixed inference seed used for each image, default `42`. |
+| `--ground-truth-encoding {signed,zero-to-one}` | EXR vector encoding; default `zero-to-one`. |
+| `--no-ground-truth-x-flip` | Disable the default X-axis flip applied to match Edit2Perceive's normal convention. |
+| `--max-images N` | Process only the first N paired images. |
+| `--visualize-images N` | Save side-by-side panels for the first N images. |
+| `--metrics-only` | Do not save per-image prediction arrays. |
 
-```bash
-# Depth Estimation
-bash scripts/Kontext_depth_lora.sh
-bash scripts/Kontext_depth.sh
+Edit2Perceive's inference preprocessing resizes each input image to a square,
+defaulting to 768 by 768 pixels. Ground-truth normals are resized to the same
+resolution before evaluation. EXR vector channels are reordered from OpenCV's
+BGR order to XYZ. By default, values are decoded from `[0, 1]` to `[-1, 1]`
+and the ground-truth X component is flipped, matching Edit2Perceive's normal
+evaluation convention. Use `--ground-truth-encoding signed` for EXRs already
+stored in `[-1, 1]`, or `--no-ground-truth-x-flip` if your maps use another
+coordinate convention.
 
-# Surface Normal Estimation
-bash scripts/Kontext_normal_lora.sh
-bash scripts/Kontext_normal.sh
+## Results
 
-# Interactive Matting
-bash scripts/Kontext_matting_lora.sh
-bash scripts/Kontext_matting.
-```
+The output directory contains:
 
----
+- `per_image_metrics.csv` — angular metrics for each image.
+- `daytime_metrics.csv` — metrics grouped by daytime, plus an analytic
+  random-guess baseline.
+- `summary.json` — run configuration and overall/daytime metrics.
+- `predictions/` — float32 XYZ prediction arrays with shape
+  `(resolution, resolution, 3)`, unless `--metrics-only` was used.
+- `visualizations/` — input, ground-truth, and prediction panels when
+  `--visualize-images N` is greater than zero.
 
-## 📝 Cite
+The global and daytime medians are computed from a 0.01-degree histogram. Use
+`--metrics-only` to avoid writing prediction arrays when disk space is limited.
 
-If you find our work useful in your research, please consider citing our paper:
-
-```bibtex
-@misc{shi2025edit2perceive,
-      title={Edit2Perceive: Image Editing Diffusion Models Are Strong Dense Perceivers}, 
-      author={Yiqing Shi and Yiren Song and Mike Zheng Shou},
-      year={2025},
-      eprint={2511.18673},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={[https://arxiv.org/abs/2511.18673](https://arxiv.org/abs/2511.18673)}, 
-}
-```
-
-## 📧 Contact
-
-If you have any questions, please feel free to contact **Yiqing Shi** at [yqshi@stu.pku.edu.cn](mailto:yqshi@stu.pku.edu.cn).
+For the upstream project, training instructions, and other evaluation tasks,
+see [README_E2P.md](README_E2P.md).
